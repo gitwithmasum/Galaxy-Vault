@@ -2032,6 +2032,25 @@
           tx.objectStore('vault_chunks').clear();
           tx.oncomplete = () => resolve(true);
           tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error || new Error('Database transaction aborted.'));
+        });
+      }
+
+      // Replace the complete vault in ONE transaction. If any write fails,
+      // IndexedDB rolls the transaction back and preserves the previous vault.
+      async function replaceAll(bundle) {
+        const db = await open();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(['vault_meta', 'vault_items', 'vault_chunks'], 'readwrite');
+          tx.objectStore('vault_meta').clear();
+          tx.objectStore('vault_items').clear();
+          tx.objectStore('vault_chunks').clear();
+          tx.objectStore('vault_meta').put(bundle.vaultHeader);
+          for (const item of bundle.encryptedItems) tx.objectStore('vault_items').put(item);
+          for (const chunk of bundle.encryptedChunks) tx.objectStore('vault_chunks').put(chunk);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error || new Error('Vault restore transaction failed.'));
+          tx.onabort = () => reject(tx.error || new Error('Vault restore transaction aborted.'));
         });
       }
 
@@ -3217,33 +3236,61 @@
         }
       }
 
-      // Import a .vault encrypted backup file
+      // Validate a backup completely before touching the currently stored vault.
+      function validateEncryptedVaultBackup(bundle) {
+        const isText = value => typeof value === 'string' && value.length > 0;
+        const header = bundle && bundle.vaultHeader;
+        if (!bundle || bundle.format !== 'VAULT_ENCRYPTED_BACKUP_V1' ||
+            !header || header.id !== 'vault_header' || header.version !== 1 ||
+            header.kdf !== 'PBKDF2-SHA256' ||
+            !Number.isInteger(header.iterations) || header.iterations < 100000 ||
+            header.iterations > 10000000 ||
+            !['salt', 'passwordWrapIv', 'wrappedMasterKeyByPassword',
+              'recoveryWrapIv', 'wrappedMasterKeyByRecovery',
+              'checkBlobIv', 'checkBlobCiphertext'].every(key => isText(header[key]))) {
+          throw new Error('Invalid or unsupported vault header in backup.');
+        }
+
+        if (!Array.isArray(bundle.encryptedItems) ||
+            !Array.isArray(bundle.encryptedChunks)) {
+          throw new Error('Backup is missing encrypted item or file-chunk arrays.');
+        }
+
+        const itemIds = new Set();
+        for (const item of bundle.encryptedItems) {
+          if (!item || !isText(item.id) || !isText(item.keyIv) ||
+              !isText(item.wrappedDataKey) || !isText(item.dataIv) ||
+              !isText(item.ciphertext) || itemIds.has(item.id)) {
+            throw new Error('Backup contains an invalid or duplicate encrypted item.');
+          }
+          itemIds.add(item.id);
+        }
+
+        for (const chunk of bundle.encryptedChunks) {
+          if (!chunk || !isText(chunk.id) || !isText(chunk.fileId) ||
+              !Number.isInteger(chunk.chunkIndex) || chunk.chunkIndex < 0 ||
+              !isText(chunk.iv) || !isText(chunk.ciphertext)) {
+            throw new Error('Backup contains an invalid encrypted file chunk.');
+          }
+        }
+        return bundle;
+      }
+
+      // Import is non-destructive until validation succeeds. The final replacement
+      // is atomic: a failed IndexedDB write leaves the old vault intact.
       async function importEncryptedVaultBackup(file) {
         if (!file) return;
         try {
+          const MAX_BACKUP_BYTES = 512 * 1024 * 1024;
+          if (file.size > MAX_BACKUP_BYTES) {
+            throw new Error('Backup is larger than the supported 512 MB import limit.');
+          }
           const text = await file.text();
-          const bundle = JSON.parse(text);
-          if (!bundle || bundle.format !== 'VAULT_ENCRYPTED_BACKUP_V1' || !bundle.vaultHeader) {
-            throw new Error('Invalid .vault backup file structure.');
-          }
-
-          await VaultDB.wipeAllStores();
-          await VaultDB.putMeta(bundle.vaultHeader);
-
-          if (Array.isArray(bundle.encryptedItems)) {
-            for (const item of bundle.encryptedItems) {
-              await VaultDB.putItem(item);
-            }
-          }
-          if (Array.isArray(bundle.encryptedChunks)) {
-            for (const chunk of bundle.encryptedChunks) {
-              await VaultDB.putChunk(chunk);
-            }
-          }
-
+          const bundle = validateEncryptedVaultBackup(JSON.parse(text));
+          await VaultDB.replaceAll(bundle);
           lockVault('Encrypted backup imported! Enter your Master Password or Recovery Key to unlock.');
         } catch (err) {
-          showToast(`Import failed: ${err.message}`, 'error');
+          showToast(`Import failed. Your existing vault was not intentionally cleared: ${err.message}`, 'error');
         }
       }
 
