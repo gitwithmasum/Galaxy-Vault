@@ -3,6 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#030712" />
+  <meta name="description" content="A local-first encrypted vault for passwords, secure notes, photos, and files." />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="VAULT" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/vault-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="./icons/vault-icon.svg" />
   <title>VAULT // QUANTUM-HUD ZERO-KNOWLEDGE ENCRYPTED STORAGE</title>
   <!-- Tailwind CSS for responsive layout & utility classes -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -308,6 +317,10 @@
   </style>
 </head>
 <body class="cyber-grid scanlines-active font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200">
+  <div id="pwaStatus" class="fixed bottom-4 left-4 z-[1000] hidden rounded-lg border border-cyan-400/30 bg-slate-950/95 px-3 py-2 text-xs text-cyan-200 shadow-lg" role="status" aria-live="polite"></div>
+  <button id="pwaInstallBtn" type="button" class="fixed bottom-4 right-4 z-[1000] hidden rounded-lg border border-cyan-400/50 bg-slate-950/95 px-4 py-3 text-xs font-bold tracking-wider text-cyan-200 shadow-lg transition hover:bg-cyan-950 focus:outline-none focus:ring-2 focus:ring-cyan-300" aria-label="Install VAULT app">
+    <span aria-hidden="true">⬇</span> INSTALL VAULT
+  </button>
 
   <!-- ==================== ULTRA-FUTURISTIC TELEMETRY BAR (Fixed Top Status Strip) ==================== -->
   <div class="fixed top-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-cyan-500/25 px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
@@ -3931,5 +3944,6 @@
       VaultApp.init();
     });
   </script>
+  <script src="./pwa.js" defer></script>
 </body>
 </html>
