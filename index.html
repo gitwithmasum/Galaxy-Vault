@@ -2723,7 +2723,7 @@
         const clean = String(name || '').trim().replace(/\\s+/g,' ');
         if (!clean || clean.length > 64) return showToast('Folder name must be 1–64 characters.','warn');
         if (getFolderNames().some(x => x.toLowerCase() === clean.toLowerCase())) return showToast('Folder already exists.','warn');
-        const now = Date.now(), id = 'folder_' + window.crypto.randomUUID();
+        const now = Date.now(), id = window.crypto.randomUUID();
         const enc = await VaultCrypto.encryptItemWithNewDataKey({type:'folder',title:clean,name:clean,folder:'',tags:[],trashed:false,createdAt:now,updatedAt:now},masterKey);
         await VaultDB.putItem({id,keyIv:enc.keyIv,wrappedDataKey:enc.wrappedDataKey,dataIv:enc.dataIv,ciphertext:enc.ciphertext,updatedAt:now});
         await loadDecryptedIndex();
@@ -2770,7 +2770,7 @@
         if (!missing.length) return showToast('Starter folders already exist.','info');
         if (!window.confirm('Create '+missing.length+' encrypted starter folders?')) return;
         for (const name of missing) {
-          const now = Date.now(), id = 'folder_' + window.crypto.randomUUID();
+          const now = Date.now(), id = window.crypto.randomUUID();
           const enc = await VaultCrypto.encryptItemWithNewDataKey({type:'folder',title:name,name,folder:'',tags:[],trashed:false,createdAt:now,updatedAt:now},masterKey);
           await VaultDB.putItem({id,keyIv:enc.keyIv,wrappedDataKey:enc.wrappedDataKey,dataIv:enc.dataIv,ciphertext:enc.ciphertext,updatedAt:now});
         }
