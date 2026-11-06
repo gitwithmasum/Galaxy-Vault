@@ -2735,7 +2735,7 @@
         const clean = String(newName || '').trim().replace(/\\s+/g,' ');
         if (!clean || clean.length > 64) return showToast('Folder name must be 1–64 characters.','warn');
         if (oldName.toLowerCase() !== clean.toLowerCase() && getFolderNames().some(x => x.toLowerCase() === clean.toLowerCase())) return showToast('Folder already exists.','warn');
-        const entries = searchIndex.filter(e => !e.payload.trashed && (e.payload.type === 'folder' ? (e.payload.name || e.payload.title) === oldName : (e.payload.folder || 'General') === oldName));
+        const entries = searchIndex.filter(e => (e.payload.type === 'folder' ? (e.payload.name || e.payload.title) === oldName : (e.payload.folder || 'General') === oldName));
         for (const e of entries) {
           const p = e.payload.type === 'folder' ? {...e.payload,title:clean,name:clean,updatedAt:Date.now()} : {...e.payload,folder:clean,updatedAt:Date.now()};
           const bytes = new TextEncoder().encode(JSON.stringify(p));
@@ -2749,7 +2749,7 @@
 
       async function deleteEncryptedFolder(name) {
         if (!masterKey) return;
-        const linked = searchIndex.filter(e => e.payload.type !== 'folder' && !e.payload.trashed && (e.payload.folder || 'General') === name);
+        const linked = searchIndex.filter(e => e.payload.type !== 'folder' && (e.payload.folder || 'General') === name);
         if (!window.confirm('Delete "'+name+'"? '+linked.length+' active item(s) will be moved to General, not deleted.')) return;
         for (const e of linked) {
           const bytes = new TextEncoder().encode(JSON.stringify({...e.payload,folder:'General',updatedAt:Date.now()}));
