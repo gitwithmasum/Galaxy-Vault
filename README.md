@@ -6,7 +6,7 @@
 ![Storage](https://img.shields.io/badge/Storage-IndexedDB_(Client--Side)-10b981?style=for-the-badge)
 ![Architecture](https://img.shields.io/badge/Stack-100%25_Vanilla_JS_%2F_HTML_%2F_CSS-f59e0b?style=for-the-badge)
 
-**Galaxy-Vault** is a zero-knowledge, client-side encrypted personal vault browser-based web application featuring an electronic **Cyber-HUD Glassmorphism** interface. Store passwords, encrypted notes, photos, and large files locally in your browser with browser-native envelope encryption. **Zero servers. Zero plaintext storage. Zero frameworks.**
+**Galaxy-Vault** is a zero-knowledge, client-side encrypted personal vault browser-based web application featuring an electronic **Cyber-HUD Glassmorphism** interface. Store passwords, encrypted notes, photos, and large files locally in your browser with browser-native envelope encryption. **No vault backend. No plaintext-at-rest records. No application framework.**
 
 🔗 **Live Enclave:** [https://gitwithmasum.github.io/Galaxy-Vault/](https://gitwithmasum.github.io/Galaxy-Vault/)
 
@@ -46,7 +46,7 @@ Because `window.crypto.subtle` requires a **Secure Context**, run the project ov
 
 ```bash
 # Clone the repository
-git clone [https://github.com/gitwithmasum/Galaxy-Vault.git](https://github.com/gitwithmasum/Galaxy-Vault.git)
+git clone https://github.com/gitwithmasum/Galaxy-Vault.git
 cd Galaxy-Vault
 
 # Serve locally (using Python or VS Code Live Server)
@@ -64,7 +64,7 @@ python -m http.server 8080
 
 ## 🔎 Important Security & Deployment Notes
 
-- **Local-first storage:** encrypted records are stored in this browser's IndexedDB. This repository does not currently provide account-based cloud sync, remote backup, or automatic multi-device synchronization.
+- **Local-first storage:** encrypted records are stored in this browser's IndexedDB. This repository does not currently provide account-based cloud sync, remote backup, or automatic multi-device synchronization. The optional breach lookup contacts the Have I Been Pwned range API using only the first five characters of a SHA-1 password hash; it is a separate third-party network request, not a vault sync service.
 - **Browser boundary:** anyone with access to an unlocked browser session may be able to view vault contents. Lock the vault before leaving the device.
 - **Clipboard cleanup is best-effort:** after 30 seconds the app checks whether the clipboard still contains the exact secret it copied. It clears it only when the browser grants clipboard read/write access. If access is denied, clear the clipboard manually. This prevents the timer from blindly overwriting a newer clipboard value.
 - **No security certification:** use of PBKDF2 and AES-GCM does not by itself prove that an application is secure. The code has not been independently audited or penetration-tested. Do not treat this project as a certified password manager or store high-risk secrets until a qualified security review is complete.
