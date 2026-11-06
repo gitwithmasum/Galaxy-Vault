@@ -676,7 +676,13 @@
 
         <!-- Folder Filter Section -->
         <div class="hidden lg:block px-4 pt-3 pb-2">
-          <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400 mb-2" data-i18n="foldersHeading">Folders</div>
+          <div class="flex items-center justify-between gap-2 mb-2">
+            <div class="text-[11px] font-mono uppercase tracking-wider text-slate-400" data-i18n="foldersHeading">Folders</div>
+            <div class="flex items-center gap-1">
+              <button id="addFolderBtn" type="button" class="px-2 py-1 rounded-md text-[10px] font-mono text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/10" title="Create encrypted folder">+ NEW</button>
+              <button id="starterFoldersBtn" type="button" class="px-2 py-1 rounded-md text-[10px] font-mono text-violet-300 border border-violet-500/30 hover:bg-violet-500/10" title="Add recommended folder set">ADD SET</button>
+            </div>
+          </div>
           <div id="folderFilterList" class="space-y-1 text-xs"></div>
         </div>
       </div>
@@ -2697,12 +2703,92 @@
         }
       }
 
+      // Folder records use the same per-item AES-256-GCM encryption as vault entries.
+      const STARTER_FOLDERS = ['01_PERSONAL','02_EDUCATION','03_ACCOUNTS','04_PROJECTS','05_WORK','06_FINANCE','07_PRIVATE_NOTES'];
+
+      function getFolderNames() {
+        const names = new Set();
+        searchIndex.forEach(entry => {
+          const p = entry.payload;
+          if (p.trashed) return;
+          if (p.type === 'folder') names.add((p.name || p.title || '').trim());
+          else if (p.folder) names.add(String(p.folder).trim());
+        });
+        names.delete('');
+        return Array.from(names).sort((a,b) => a.localeCompare(b));
+      }
+
+      async function createEncryptedFolder(name) {
+        if (!masterKey) return;
+        const clean = String(name || '').trim().replace(/\\s+/g,' ');
+        if (!clean || clean.length > 64) return showToast('Folder name must be 1–64 characters.','warn');
+        if (getFolderNames().some(x => x.toLowerCase() === clean.toLowerCase())) return showToast('Folder already exists.','warn');
+        const now = Date.now(), id = 'folder_' + window.crypto.randomUUID();
+        const enc = await VaultCrypto.encryptItemWithNewDataKey({type:'folder',title:clean,name:clean,folder:'',tags:[],trashed:false,createdAt:now,updatedAt:now},masterKey);
+        await VaultDB.putItem({id,keyIv:enc.keyIv,wrappedDataKey:enc.wrappedDataKey,dataIv:enc.dataIv,ciphertext:enc.ciphertext,updatedAt:now});
+        await loadDecryptedIndex();
+        showToast('Folder name encrypted and saved.','success');
+      }
+
+      async function renameEncryptedFolder(oldName,newName) {
+        if (!masterKey) return;
+        const clean = String(newName || '').trim().replace(/\\s+/g,' ');
+        if (!clean || clean.length > 64) return showToast('Folder name must be 1–64 characters.','warn');
+        if (oldName.toLowerCase() !== clean.toLowerCase() && getFolderNames().some(x => x.toLowerCase() === clean.toLowerCase())) return showToast('Folder already exists.','warn');
+        const entries = searchIndex.filter(e => !e.payload.trashed && (e.payload.type === 'folder' ? (e.payload.name || e.payload.title) === oldName : (e.payload.folder || 'General') === oldName));
+        for (const e of entries) {
+          const p = e.payload.type === 'folder' ? {...e.payload,title:clean,name:clean,updatedAt:Date.now()} : {...e.payload,folder:clean,updatedAt:Date.now()};
+          const bytes = new TextEncoder().encode(JSON.stringify(p));
+          const enc = await VaultCrypto.encryptBytes(bytes,e.dataKey); VaultCrypto.wipeBytes(bytes);
+          await VaultDB.putItem({...e.record,dataIv:enc.iv,ciphertext:enc.ciphertext,updatedAt:Date.now()});
+        }
+        if (selectedFolder === oldName) selectedFolder = clean;
+        await loadDecryptedIndex();
+        showToast('Folder renamed; linked metadata re-encrypted.','success');
+      }
+
+      async function deleteEncryptedFolder(name) {
+        if (!masterKey) return;
+        const linked = searchIndex.filter(e => e.payload.type !== 'folder' && !e.payload.trashed && (e.payload.folder || 'General') === name);
+        if (!window.confirm('Delete "'+name+'"? '+linked.length+' active item(s) will be moved to General, not deleted.')) return;
+        for (const e of linked) {
+          const bytes = new TextEncoder().encode(JSON.stringify({...e.payload,folder:'General',updatedAt:Date.now()}));
+          const enc = await VaultCrypto.encryptBytes(bytes,e.dataKey); VaultCrypto.wipeBytes(bytes);
+          await VaultDB.putItem({...e.record,dataIv:enc.iv,ciphertext:enc.ciphertext,updatedAt:Date.now()});
+        }
+        const records = searchIndex.filter(e => e.payload.type === 'folder' && (e.payload.name || e.payload.title) === name);
+        for (const e of records) await VaultDB.deleteItemAndChunks(e.id);
+        if (selectedFolder === name) selectedFolder = 'ALL';
+        await loadDecryptedIndex();
+        showToast('Folder deleted; its items remain in General.','success');
+      }
+
+      async function addStarterFolderSet() {
+        if (!masterKey) return;
+        const have = new Set(getFolderNames().map(x => x.toLowerCase()));
+        const missing = STARTER_FOLDERS.filter(x => !have.has(x.toLowerCase()));
+        if (!missing.length) return showToast('Starter folders already exist.','info');
+        if (!window.confirm('Create '+missing.length+' encrypted starter folders?')) return;
+        for (const name of missing) {
+          const now = Date.now(), id = 'folder_' + window.crypto.randomUUID();
+          const enc = await VaultCrypto.encryptItemWithNewDataKey({type:'folder',title:name,name,folder:'',tags:[],trashed:false,createdAt:now,updatedAt:now},masterKey);
+          await VaultDB.putItem({id,keyIv:enc.keyIv,wrappedDataKey:enc.wrappedDataKey,dataIv:enc.dataIv,ciphertext:enc.ciphertext,updatedAt:now});
+        }
+        await loadDecryptedIndex();
+        showToast(missing.length+' encrypted starter folders created.','success');
+      }
+
+      function promptCreateFolder() {
+        const name = window.prompt('New folder name (up to 64 characters):');
+        if (name !== null) createEncryptedFolder(name).catch(e => showToast('Folder creation failed: '+e.message,'error'));
+      }
+
       // Render Folder list in sidebar and Tag chips in top bar
       function renderFolderAndTagFilters() {
-        const folders = new Set();
+        const folders = new Set(getFolderNames());
         const tags = new Set();
         searchIndex.forEach(x => {
-          if (!x.payload.trashed) {
+          if (!x.payload.trashed && x.payload.type !== 'folder') {
             if (x.payload.folder) folders.add(x.payload.folder);
             if (Array.isArray(x.payload.tags)) x.payload.tags.forEach(t => tags.add(t));
           }
@@ -2728,7 +2814,13 @@
 
         folderContainer.appendChild(makeFolderBtn('ALL', 'All Folders'));
         Array.from(folders).sort().forEach(f => {
-          folderContainer.appendChild(makeFolderBtn(f, f));
+          const row = document.createElement('div'); row.className = 'flex items-center gap-1 group';
+          const selectBtn = makeFolderBtn(f,f); selectBtn.classList.add('min-w-0','flex-1'); row.appendChild(selectBtn);
+          const editBtn = document.createElement('button'); editBtn.type='button'; editBtn.className='px-1.5 py-1 text-[10px] text-slate-500 hover:text-cyan-300'; editBtn.textContent='EDIT'; editBtn.title='Rename folder'; editBtn.setAttribute('aria-label','Rename folder '+f);
+          editBtn.onclick=()=>{const next=window.prompt('Rename folder:',f);if(next!==null)renameEncryptedFolder(f,next).catch(e=>showToast('Rename failed: '+e.message,'error'));};
+          const delBtn = document.createElement('button'); delBtn.type='button'; delBtn.className='px-1.5 py-1 text-[10px] text-slate-500 hover:text-rose-300'; delBtn.textContent='DEL'; delBtn.title='Delete folder and move its items to General'; delBtn.setAttribute('aria-label','Delete folder '+f);
+          delBtn.onclick=()=>deleteEncryptedFolder(f).catch(e=>showToast('Delete failed: '+e.message,'error'));
+          row.appendChild(editBtn); row.appendChild(delBtn); folderContainer.appendChild(row);
         });
 
         // Tag chips bar
@@ -3702,6 +3794,8 @@
         document.getElementById('closeItemModalBtn').onclick = () => document.getElementById('itemModal').classList.add('hidden');
         document.getElementById('cancelItemModalBtn').onclick = () => document.getElementById('itemModal').classList.add('hidden');
         document.getElementById('itemForm').addEventListener('submit', handleItemFormSubmit);
+        document.getElementById('addFolderBtn').addEventListener('click', promptCreateFolder);
+        document.getElementById('starterFoldersBtn').addEventListener('click', addStarterFolderSet);
 
         document.getElementById('toggleModalPasswordBtn').onclick = () => {
           const inp = document.getElementById('itemPasswordInput');
