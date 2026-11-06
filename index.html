@@ -813,7 +813,7 @@
               <div id="fileUploadMetaControls" class="mt-4 pt-4 border-t border-slate-800/80 max-w-lg mx-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left" onclick="event.stopPropagation()">
                 <div>
                   <label class="block text-[10px] font-mono uppercase text-slate-400 mb-1" data-i18n="folderLabel">Folder</label>
-                  <input id="uploadFileFolderInput" type="text" value="Documents" class="glass-input w-full rounded-lg px-3 py-1.5 text-xs" />
+                  <select id="uploadFileFolderInput" class="glass-input w-full rounded-lg px-3 py-1.5 text-xs"><option value="General">General</option></select>
                 </div>
                 <div>
                   <label class="block text-[10px] font-mono uppercase text-slate-400 mb-1" data-i18n="tagsLabel">Tags (comma separated)</label>
@@ -998,7 +998,7 @@
           </div>
           <div>
             <label class="block text-xs text-slate-300 mb-1" data-i18n="folderLabel">Folder</label>
-            <input id="itemFolderInput" type="text" autocomplete="off" value="General"
+            <select id="itemFolderInput" autocomplete="off" class="glass-input w-full rounded-lg px-3 py-2 text-sm"><option value="General">General</option></select><!--
               class="glass-input w-full rounded-xl px-3.5 py-2.5 text-xs sm:text-sm" placeholder="Work, Personal..." />
           </div>
         </div>
@@ -2401,7 +2401,8 @@
       async function handleFilesUpload(fileList) {
         if (!masterKey || !fileList || fileList.length === 0) return;
 
-        const folder = (document.getElementById('uploadFileFolderInput').value || 'Documents').trim();
+        const folderSelect = document.getElementById('uploadFileFolderInput');
+        const folder = (selectedFolder !== 'ALL' ? selectedFolder : (folderSelect.value || 'General')).trim();
         const rawTags = document.getElementById('uploadFileTagsInput').value || '';
         const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
 
@@ -2792,6 +2793,22 @@
             if (x.payload.folder) folders.add(x.payload.folder);
             if (Array.isArray(x.payload.tags)) x.payload.tags.forEach(t => tags.add(t));
           }
+        });
+
+        // Keep both item and file-upload folder selectors synchronized with encrypted folders.
+        ['itemFolderInput', 'uploadFileFolderInput'].forEach(id => {
+          const select = document.getElementById(id);
+          if (!select) return;
+          const previous = select.value;
+          select.replaceChildren();
+          ['General', ...Array.from(folders).filter(name => name !== 'General').sort((a,b) => a.localeCompare(b))].forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            select.appendChild(option);
+          });
+          const preferred = selectedFolder !== 'ALL' ? selectedFolder : previous;
+          select.value = Array.from(select.options).some(option => option.value === preferred) ? preferred : 'General';
         });
 
         const folderContainer = document.getElementById('folderFilterList');
