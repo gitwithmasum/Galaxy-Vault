@@ -2401,7 +2401,7 @@
         if (!masterKey || !fileList || fileList.length === 0) return;
 
         const folderSelect = document.getElementById('uploadFileFolderInput');
-        const folder = (selectedFolder !== 'ALL' ? selectedFolder : (folderSelect.value || 'General')).trim();
+        const folder = (folderSelect.value || (selectedFolder !== 'ALL' ? selectedFolder : 'General')).trim();
         const rawTags = document.getElementById('uploadFileTagsInput').value || '';
         const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
 
