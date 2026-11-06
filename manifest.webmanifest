@@ -1,0 +1,29 @@
+{
+  "name": "VAULT // Personal Encrypted Vault",
+  "short_name": "VAULT",
+  "description": "A local-first encrypted vault for passwords, secure notes, photos, and files.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "any",
+  "background_color": "#030712",
+  "theme_color": "#030712",
+  "categories": [
+    "security",
+    "utilities",
+    "productivity"
+  ],
+  "icons": [
+    {
+      "src": "./icons/vault-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
