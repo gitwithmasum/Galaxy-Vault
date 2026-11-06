@@ -2128,7 +2128,8 @@
         }, 4200);
       }
 
-      // Helper: Copy secret with 30-second clipboard auto-clear countdown
+      // Copy a secret and clear it only if it is STILL the clipboard value later.
+      // This avoids overwriting a different value the user copied in the meantime.
       async function copySecretWithAutoClear(secretText, label = 'Password') {
         let copied = false;
         try {
@@ -2147,17 +2148,22 @@
           document.body.appendChild(ta);
           ta.select();
           try {
-            document.execCommand('copy');
-            copied = true;
-          } catch (_) {}
+            copied = document.execCommand('copy');
+          } catch (_) {
+            copied = false;
+          }
           ta.remove();
         }
 
-        showToast(`${label} copied! Auto-clearing clipboard in 30s.`, 'success');
-        startClipboardCountdown();
+        if (!copied) {
+          showToast('Clipboard access was blocked. Copy the secret manually.', 'error');
+          return;
+        }
+        showToast(`${label} copied! A 30s clear attempt is scheduled.`, 'success');
+        startClipboardCountdown(secretText);
       }
 
-      function startClipboardCountdown() {
+      function startClipboardCountdown(expectedSecret) {
         if (clipboardInterval) clearInterval(clipboardInterval);
         clipboardCountdownSec = 30;
         const box = document.getElementById('clipboardCountdownBox');
@@ -2177,12 +2183,25 @@
             clearInterval(clipboardInterval);
             clipboardInterval = null;
             box.classList.add('hidden');
+            let cleared = false;
             try {
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(' ');
+              if (navigator.clipboard && navigator.clipboard.readText && navigator.clipboard.writeText) {
+                const currentClipboard = await navigator.clipboard.readText();
+                if (currentClipboard === expectedSecret) {
+                  await navigator.clipboard.writeText('');
+                  cleared = true;
+                }
               }
-            } catch (_) {}
-            showToast('Clipboard automatically scrubbed.', 'info');
+            } catch (_) {
+              // Clipboard read permission is browser-controlled; never overwrite
+              // clipboard contents blindly when the current value cannot be checked.
+            }
+            showToast(
+              cleared
+                ? 'Copied secret removed from clipboard.'
+                : 'Clipboard was not changed; clear it manually if it still contains the secret.',
+              cleared ? 'success' : 'info'
+            );
           } else {
             updateUI();
           }
