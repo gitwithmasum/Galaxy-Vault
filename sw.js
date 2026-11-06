@@ -1,7 +1,7 @@
 /* VAULT//OS service worker — static app-shell cache only.
    Encrypted vault records remain in IndexedDB and are never copied into Cache Storage. */
 const CACHE_PREFIX = "vault-os-shell-";
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = CACHE_PREFIX + CACHE_VERSION;
 const APP_SHELL = [
   "./",

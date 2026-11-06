@@ -807,7 +807,7 @@
                 </svg>
               </div>
               <p class="text-sm font-semibold text-white mb-1" data-i18n="dropzoneTitle">Drag & drop files or photos here, or click to browse</p>
-              <p class="text-xs text-slate-400 font-mono" data-i18n="dropzoneSub">Encrypted in 4 MB chunks • Fresh 12-byte IV per chunk • Encrypted image thumbnails</p>
+              <p class="text-xs text-slate-400 font-mono" data-i18n="dropzoneSub">Max 20 MB per file • Encrypted in 4 MB chunks • Fresh 12-byte IV per chunk • Encrypted thumbnails</p>
 
               <!-- Folder & Tags metadata for uploaded files -->
               <div id="fileUploadMetaControls" class="mt-4 pt-4 border-t border-slate-800/80 max-w-lg mx-auto grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left" onclick="event.stopPropagation()">
@@ -1279,7 +1279,7 @@
           changeMasterPassNow: 'Set New Master Password',
           emptyTrashBtn: 'Empty Trash Permanently',
           dropzoneTitle: 'Drag & drop files or photos here, or click to browse',
-          dropzoneSub: 'Encrypted in 4 MB chunks • Fresh 12-byte IV per chunk • Encrypted image thumbnails',
+          dropzoneSub: 'Max 20 MB per file • Encrypted in 4 MB stream chunks • Fresh 12-byte IV per chunk • Encrypted thumbnails',
           folderLabel: 'Folder',
           tagsLabel: 'Tags (comma separated)',
           emptyTitle: 'No Encrypted Items Found',
@@ -1368,7 +1368,7 @@
           changeMasterPassNow: 'নতুন মাস্টার পাসওয়ার্ড দিন',
           emptyTrashBtn: 'ট্র্যাশ স্থায়ীভাবে মুছুন',
           dropzoneTitle: 'ফাইল বা ছবি এখানে টেনে আনুন অথবা ব্রাউজ করতে ক্লিক করুন',
-          dropzoneSub: '৪ মেগাবাইট চাঙ্কে এনক্রিপ্টেড • প্রতি চাঙ্কে নতুন ১২-বাইট IV • এনক্রিপ্টেড থাম্বনেইল',
+          dropzoneSub: 'প্রতি ফাইলে সর্বোচ্চ ২০ MB • ৪ MB চাঙ্কে স্ট্রিম এনক্রিপ্টেড • প্রতি চাঙ্কে নতুন ১২-বাইট IV • এনক্রিপ্টেড থাম্বনেইল',
           folderLabel: 'ফোল্ডার',
           tagsLabel: 'ট্যাগ (কমা দিয়ে আলাদা করুন)',
           emptyTitle: 'কোনো এনক্রিপ্টেড তথ্য পাওয়া যায়নি',
@@ -2405,13 +2405,27 @@
         const rawTags = document.getElementById('uploadFileTagsInput').value || '';
         const tags = rawTags.split(',').map(t => t.trim()).filter(Boolean);
 
+        const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB limit
+        const filesArray = Array.from(fileList);
+        const validFiles = [];
+
+        for (const file of filesArray) {
+          if (file.size > MAX_FILE_SIZE) {
+            showToast(`"${file.name}" exceeds the 20 MB limit (${formatBytes(file.size)}). Upload rejected.`, 'error');
+          } else {
+            validFiles.push(file);
+          }
+        }
+
+        if (validFiles.length === 0) return;
+
         const progressBox = document.getElementById('fileChunkProgressBox');
         const progressLabel = document.getElementById('fileChunkProgressLabel');
         const progressPct = document.getElementById('fileChunkProgressPercent');
         const progressBar = document.getElementById('fileChunkProgressBar');
         progressBox.classList.remove('hidden');
 
-        for (const file of Array.from(fileList)) {
+        for (const file of validFiles) {
           const fileId = `file_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
           const chunkSize = VaultCrypto.FILE_CHUNK_SIZE;
           const totalChunks = Math.max(1, Math.ceil(file.size / chunkSize));

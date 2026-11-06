@@ -21,7 +21,7 @@
   - Every individual vault item (password, note, or file) generates its own isolated **256-bit Data Key (`DK`)**, which is wrapped by `MK`.
 - **Authenticated Encryption:** `AES-256-GCM` with a fresh 96-bit (**12-byte**) random Initialization Vector (`IV`) per operation and a 128-bit authentication tag. IVs are never reused.
 - **256-Bit Emergency Recovery Key:** Generated once during initialization via `crypto.getRandomValues()`. Stores a secondary wrapped copy of the Master Key (`wrappedMasterKeyByRecovery`) for zero-server password recovery and key rotation.
-- **4 MB Stream Chunking:** Large files are sliced into `4,194,304`-byte chunks, each encrypted independently with a fresh 12-byte IV to prevent memory exhaustion.
+- **20 MB File Limit & 4 MB Stream Chunking:** Individual files up to 20 MB are supported. Large files are sliced into `4,194,304`-byte chunks, each encrypted independently with a fresh 12-byte IV to prevent browser memory exhaustion.
 - **RAM Hygiene:** Locking the vault zeroes temporary `Uint8Array` buffers, revokes active object URLs, clears the in-memory search index, and drops all `CryptoKey` references.
 
 ---
@@ -34,10 +34,10 @@
 4. **Password Manager & CSPRNG Generator:** Store credentials with custom tags, show/hide toggles, **30-second best-effort clipboard cleanup (only clears the copied secret if it is still present)**, and an optional **k-Anonymity Breach Check** (sends only the first 5 characters of the SHA-1 hash prefix).
 5. **Encrypted Notes:** Full-text encrypted markdown/text notes.
 6. **Encrypted Folder Manager:** Create, rename, and delete folders, including a one-click starter set. Folder names are stored inside encrypted item payloads; folder IDs are opaque random UUIDs. Renaming re-encrypts linked item metadata, while deleting a folder moves its active items to `General` rather than deleting those items.
-6. **Chunked Encrypted File & Photo Vault:** Drag-and-drop upload with live progress telemetry, encrypted image thumbnails, built-in RAM viewer for images and PDFs, and on-the-fly decrypted downloads.
-7. **In-Memory Search Index:** Instant filtering by title, folder, and tags without exposing plaintext to IndexedDB.
-8. **Trash & Key Rotation:** Soft-delete with restore, permanent destruction, Master Password rotation (re-wraps `MK` without re-encrypting items), encrypted `.vault` backup export/import, and an emergency **Panic Wipe**.
-9. **Bilingual Cyber-HUD UI:** Instant toggle between **English** and **বাংলা (Bangla)** with toggleable CRT scanlines and live cryptographic telemetry.
+7. **Chunked Encrypted File & Photo Vault (Up to 20 MB):** Drag-and-drop upload with live progress telemetry, 20 MB file size guard, encrypted image thumbnails, built-in RAM viewer for images and PDFs, and on-the-fly decrypted downloads.
+8. **In-Memory Search Index:** Instant filtering by title, folder, and tags without exposing plaintext to IndexedDB.
+9. **Trash & Key Rotation:** Soft-delete with restore, permanent destruction, Master Password rotation (re-wraps `MK` without re-encrypting items), encrypted `.vault` backup export/import, and an emergency **Panic Wipe**.
+10. **Bilingual Cyber-HUD UI:** Instant toggle between **English** and **বাংলা (Bangla)** with toggleable CRT scanlines and live cryptographic telemetry.
 
 ---
 
