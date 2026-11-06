@@ -54,6 +54,16 @@ python -m http.server 8080
 
 ---
 
+## 📲 Install & Offline Use
+
+1. Open the GitHub Pages URL over HTTPS in a supported browser.
+2. Keep the browser online until the page has loaded and the service worker has installed; reload once.
+3. Use the **INSTALL VAULT** control when the browser offers installation, or use the browser menu to install / add to home screen.
+4. After the app shell and UI dependencies have been cached, test offline mode. Password breach checks and other network-dependent features will not work without internet.
+5. Your vault remains stored in that browser's IndexedDB. Installing the app does not move or sync vault data between browsers or devices.
+
+The service worker uses a versioned cache and replaces the previous VAULT app-shell cache when a new version activates. It deliberately does not cache vault records or backup contents.
+
 ## 🛡️ Backup & Restore Safety
 
 - Import checks the backup format, supported vault header, encrypted item records, and encrypted file chunks before changing local data.
@@ -68,5 +78,5 @@ python -m http.server 8080
 - **Browser boundary:** anyone with access to an unlocked browser session may be able to view vault contents. Lock the vault before leaving the device.
 - **Clipboard cleanup is best-effort:** after 30 seconds the app checks whether the clipboard still contains the exact secret it copied. It clears it only when the browser grants clipboard read/write access. If access is denied, clear the clipboard manually. This prevents the timer from blindly overwriting a newer clipboard value.
 - **No security certification:** use of PBKDF2 and AES-GCM does not by itself prove that an application is secure. The code has not been independently audited or penetration-tested. Do not treat this project as a certified password manager or store high-risk secrets until a qualified security review is complete.
-- **PWA status:** the current repository does not yet include a deployed manifest, service worker, or installable offline application shell. The in-app architecture preview is a reference, not proof that those files are deployed.
+- **PWA / offline shell:** the repository now includes `manifest.webmanifest`, `sw.js`, `pwa.js`, and an SVG app icon. The service worker caches the app shell and selected UI dependencies for offline launch. It does not cache IndexedDB vault contents, backup files, or the Have I Been Pwned API response. The first visit must be online; allow the service worker to install and reload once while online before testing offline mode. External browser capabilities and CDN/font availability can still vary.
 - **Backup compatibility:** restore currently accepts the `VAULT_ENCRYPTED_BACKUP_V1` format and vault header version `1`.
